@@ -7,20 +7,40 @@ const { SECRET_KEY } = process.env;
 
 export const register = async (req, res, next) => {
     try {
-        const { name, email, password } = req.body;
+        const { email, password } = req.body;
         const user = await User.findOne({ email });
         if (user) {
             throw HttpError(409, "Email in use");
         }
+
         const hashPassword = await bcrypt.hash(password, 10);
-        const newUser = await User.create({...req.body, password: hashPassword});
-        res.status(201).json(
-            {
-                user: {
-                    name: newName.name,
-                    email: newUser.email,
-                }
+
+        const newUser = await User.create({ ...req.body, password: hashPassword });
+        
+        const { _id: id } = newUser;
+        const payload = { id };
+        const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "24h" });
+
+        await User.findByIdAndUpdate(id, { token }, { new: true })
+            .populate("boards", {
+                _id: 1,
+                title: 1,
+                icon: 1,
+                background: 1,
+                updatedAt: 1,
             })
+            .then((user) => {
+                res.status(201).json({
+                token: token,
+                    user: {
+                    name: user.name,
+                    email: user.email,
+                    avatarURL: user.avatarURL,
+                    boards: user.boards,
+                    theme: user.theme,                   
+                }
+            })            
+        })
     } catch (error) {
         next(error)
     }
@@ -41,42 +61,58 @@ export const login = async (req, res, next) => {
             id: user._id
         }
         const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "24h" });
-        await User.findByIdAndUpdate(user._id, { token });
+
+        await User.findByIdAndUpdate(user._id, { token }, { new: true })
+            .populate("boards", {
+                _id: 1,
+                title: 1,
+                icon: 1,
+                background: 1,
+                updatedAt: 1,
+            })
+            .then((user) => {
+                res.status(201).json({
+                    user: {
+                    name: user.name,
+                    email: user.email,
+                    avatarURL: user.avatarURL,
+                    boards: user.boards,
+                    theme: user.theme,                   
+                }
+            })            
+        })
+    } catch (error) {
+        next(error)
+    }
+};
+
+export const getCurrent = async (req, res, next) => {
+    try {
+        const { _id, name, email, avatarURL, boards, theme } = req.user;
         
-        res.status(200).json({
-            token,
-            user: {
-                email: user.email,
-                name: newName.name,
-            }
+        await User.findById(_id, { new: true })
+            .populate("boards", {
+                _id: 1,
+                title: 1,
+                icon: 1,
+                background: 1,
+                updatedAt: 1,
+            })
+            .then((user) => {
+                res.status(201).json({
+                    user: {
+                    name,
+                    email,
+                    avatarURL,
+                    boards,
+                    theme,                   
+                }
+            })            
         })
     } catch (error) {
         next(error)
     }
 }
-
-export const editProfile = async (req, res, next) => {
-    try {
-        const { name, email, password } = req.body;
-        const { _id } = req.user;
-
-        const hashPassword = password;
-        if (password) {
-            hashPassword = await bcrypt.hash(password, 10);
-        }
-
-        const updateUser = await User.findByIdAndUpdate(_id, { name, email, password: hashPassword }, { new: true });
-
-        res.status(200).json({
-            user: {
-                name: updateUser.name,
-                email: updateUser.email,
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
 
 export const updateAvatar = async (req, res, next) => {
     try {

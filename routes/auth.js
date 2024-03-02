@@ -3,12 +3,14 @@ import {authenticate} from "../middlewares/authenticate.js"
 import { schema } from "../models/users.js";
 import {
     register,
-    login
+    login,
+    getCurrent
 } from "../controllers/auth.js";
 
-const authRouter = express.Router();
+const router = express.Router();
 
-authRouter.post("/register", validateBody(schema.registerSchema), register);
-authRouter.post("/login", validateBody(schema.loginSchema), login);
+router.post("/register", validateBody(schema.registerSchema), register);
+router.post("/login", validateBody(schema.loginSchema), login);
+router.get("/current", authenticate, getCurrent);
 
-export default authRouter;
+export default router;
