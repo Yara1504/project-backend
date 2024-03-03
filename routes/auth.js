@@ -12,5 +12,6 @@ const router = express.Router();
 router.post("/register", validateBody(schema.registerSchema), register);
 router.post("/login", validateBody(schema.loginSchema), login);
 router.get("/current", authenticate, getCurrent);
+router.patch("/update", authenticate, upload.single("avatar"));
 
 export default router;
